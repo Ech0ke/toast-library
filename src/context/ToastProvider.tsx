@@ -5,7 +5,10 @@ import Toast from "../components/Toast";
 
 type ToastContextType = {
   toasts: Toast[];
-  addToast: (text: string, options?: Partial<ToastOptions>) => string;
+  addToast: (
+    text: string,
+    options?: Partial<ToastOptions & { id: string }>
+  ) => string;
   removeToast: (id: string) => void;
 };
 
@@ -36,9 +39,14 @@ export function ToastProvider({ children }: ToastProviderProps) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   console.log(toasts);
 
-  function addToast(text: string, userOptions: Partial<ToastOptions> = {}) {
+  function addToast(
+    text: string,
+    {
+      id = crypto.randomUUID(),
+      ...userOptions
+    }: Partial<ToastOptions & { id: string }> = {}
+  ) {
     const options = { ...DEFAULT_OPTIONS, ...userOptions };
-    const id = crypto.randomUUID();
     setToasts((currentToasts) => [...currentToasts, { id, text, options }]);
 
     if (options.autoDismiss) {
@@ -74,9 +82,9 @@ export function ToastProvider({ children }: ToastProviderProps) {
           <div key={position} className={`toast-container ${position}`}>
             {toasts.map((toast) => (
               <Toast
+                key={toast.id}
                 remove={() => removeToast(toast.id)}
                 text={toast.text}
-                key={toast.id}
               />
             ))}
           </div>
