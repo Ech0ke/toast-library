@@ -1,11 +1,11 @@
-import { createContext, useState } from "react";
+import { createContext, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Toast from "../components/Toast";
 
 type ToastContextType = {
   toasts: Toast[];
-  addToast: (text: string, options?: ToastOptions) => void;
+  addToast: (text: string, options?: Partial<ToastOptions>) => string;
   removeToast: (id: string) => void;
 };
 
@@ -34,8 +34,9 @@ type ToastProviderProps = {
 
 export function ToastProvider({ children }: ToastProviderProps) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  console.log(toasts);
 
-  function addToast(text: string, userOptions?: ToastOptions) {
+  function addToast(text: string, userOptions: Partial<ToastOptions> = {}) {
     const options = { ...DEFAULT_OPTIONS, ...userOptions };
     const id = crypto.randomUUID();
     setToasts((currentToasts) => [...currentToasts, { id, text, options }]);
@@ -43,6 +44,8 @@ export function ToastProvider({ children }: ToastProviderProps) {
     if (options.autoDismiss) {
       setTimeout(() => removeToast(id), options.autoDismissTimeout);
     }
+
+    return id;
   }
 
   function removeToast(id: string) {
@@ -50,16 +53,32 @@ export function ToastProvider({ children }: ToastProviderProps) {
       return currentToasts.filter((toast) => toast.id !== id);
     });
   }
+
+  const toastsByPosition = useMemo(() => {
+    return toasts.reduce((grouped, toast) => {
+      const { position } = toast.options;
+      if (grouped[position] == null) {
+        grouped[position] = [];
+      }
+      grouped[position].push(toast);
+
+      return grouped;
+    }, {} as Record<string, Toast[]>);
+  }, [toasts]);
+
   return (
     <ToastContext.Provider value={{ toasts, addToast, removeToast }}>
       {children}
       {createPortal(
-        toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={`toast-container ${toast.options.position}`}
-          >
-            <Toast text={toast.text} remove={() => removeToast(toast.id)} />
+        Object.entries(toastsByPosition).map(([position, toasts]) => (
+          <div key={position} className={`toast-container ${position}`}>
+            {toasts.map((toast) => (
+              <Toast
+                remove={() => removeToast(toast.id)}
+                text={toast.text}
+                key={toast.id}
+              />
+            ))}
           </div>
         )),
         document.getElementById("toast-container") as HTMLDivElement
